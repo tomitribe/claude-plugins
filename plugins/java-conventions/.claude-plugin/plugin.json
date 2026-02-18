@@ -1,0 +1,8 @@
+{
+  "name": "java-conventions",
+  "description": "Tomitribe Java coding conventions",
+  "version": "1.0.0",
+  "author": {
+    "name": "Tomitribe"
+  }
+}

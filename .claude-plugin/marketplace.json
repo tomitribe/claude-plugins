@@ -1,0 +1,18 @@
+{
+  "name": "tomitribe",
+  "owner": {
+    "name": "Tomitribe"
+  },
+  "plugins": [
+    {
+      "name": "java-conventions",
+      "source": "./plugins/java-conventions",
+      "description": "Tomitribe Java coding conventions (final keyword usage, etc.)"
+    },
+    {
+      "name": "churchkey",
+      "source": "./plugins/churchkey",
+      "description": "Churchkey cryptographic key library reference docs"
+    }
+  ]
+}
