@@ -13,6 +13,11 @@
       "name": "churchkey",
       "source": "./plugins/churchkey",
       "description": "Churchkey cryptographic key library reference docs"
+    },
+    {
+      "name": "tomitribe-util-dir",
+      "source": "./plugins/tomitribe-util-dir",
+      "description": "Strongly-typed filesystem manipulation with Dir proxy interfaces"
     }
   ]
 }
