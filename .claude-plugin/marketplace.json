@@ -18,6 +18,11 @@
       "name": "tomitribe-util-dir",
       "source": "./plugins/tomitribe-util-dir",
       "description": "Strongly-typed filesystem manipulation with Dir proxy interfaces"
+    },
+    {
+      "name": "crest",
+      "source": "./plugins/crest",
+      "description": "Annotation-driven CLI framework for building Java command-line tools"
     }
   ]
 }
