@@ -18,6 +18,41 @@
       "name": "pixie",
       "source": "./plugins/pixie",
       "description": "Pixie lightweight dependency injection, configuration, and event library reference"
+    },
+    {
+      "name": "jaws",
+      "source": "./plugins/jaws",
+      "description": "JAWS (Java AWS S3) typed proxy library reference"
+    },
+    {
+      "name": "crest",
+      "source": "./plugins/crest",
+      "description": "Crest annotation-based CLI framework reference"
+    },
+    {
+      "name": "archie",
+      "source": "./plugins/archie",
+      "description": "Archie streaming archive transformation library reference"
+    },
+    {
+      "name": "checkmate",
+      "source": "./plugins/checkmate",
+      "description": "Checkmate fluent validation library reference"
+    },
+    {
+      "name": "http-signatures",
+      "source": "./plugins/http-signatures",
+      "description": "HTTP Signatures Java library reference"
+    },
+    {
+      "name": "swizzle",
+      "source": "./plugins/swizzle",
+      "description": "Swizzle stream manipulation and lexer library reference"
+    },
+    {
+      "name": "tomitribe-util",
+      "source": "./plugins/tomitribe-util",
+      "description": "Tomitribe utility library — encoding, I/O, duration/size, templates, collections, reflection, and more"
     }
   ]
 }

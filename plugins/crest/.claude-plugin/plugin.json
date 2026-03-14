@@ -1,0 +1,8 @@
+{
+  "name": "crest",
+  "description": "Crest annotation-based CLI framework reference",
+  "version": "1.0.0",
+  "author": {
+    "name": "Tomitribe"
+  }
+}

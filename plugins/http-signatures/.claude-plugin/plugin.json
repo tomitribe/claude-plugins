@@ -1,0 +1,8 @@
+{
+  "name": "http-signatures",
+  "description": "HTTP Signatures Java library reference",
+  "version": "1.0.0",
+  "author": {
+    "name": "Tomitribe"
+  }
+}

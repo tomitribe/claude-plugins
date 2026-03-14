@@ -1,0 +1,8 @@
+{
+  "name": "swizzle",
+  "description": "Swizzle stream manipulation and lexer library reference",
+  "version": "1.0.0",
+  "author": {
+    "name": "Tomitribe"
+  }
+}
