@@ -1,6 +1,6 @@
 {
   "name": "crest",
-  "description": "Crest annotation-based CLI framework reference",
+  "description": "Tomitribe Crest CLI framework for building Java command-line tools with annotations",
   "version": "1.0.0",
   "author": {
     "name": "Tomitribe"

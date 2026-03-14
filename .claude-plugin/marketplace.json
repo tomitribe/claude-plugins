@@ -15,6 +15,11 @@
       "description": "Churchkey cryptographic key library reference docs"
     },
     {
+      "name": "tomitribe-util-dir",
+      "source": "./plugins/tomitribe-util-dir",
+      "description": "Strongly-typed filesystem manipulation with Dir proxy interfaces"
+    },
+    {
       "name": "pixie",
       "source": "./plugins/pixie",
       "description": "Pixie lightweight dependency injection, configuration, and event library reference"
@@ -27,7 +32,7 @@
     {
       "name": "crest",
       "source": "./plugins/crest",
-      "description": "Crest annotation-based CLI framework reference"
+      "description": "Annotation-driven CLI framework for building Java command-line tools"
     },
     {
       "name": "archie",
