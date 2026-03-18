@@ -1,3 +1,7 @@
+---
+description: "Tomitribe Java final keyword conventions. TRIGGER when: writing or modifying Java code in any Tomitribe project — applies final to parameters, local variables, and fields per Tomitribe coding standards. DO NOT TRIGGER when: working on non-Tomitribe projects."
+---
+
 # Java `final` Keyword Conventions
 
 When writing or modifying Java code in this project, apply `final` according to these conventions.

@@ -1,3 +1,7 @@
+---
+description: "Reference for org.tomitribe.archie streaming archive transformation library. TRIGGER when: code imports from org.tomitribe.archie, or user needs to transform ZIP/JAR/TAR.GZ archives on-the-fly (inject entries, replace content, skip entries, enhance bytecode while streaming). DO NOT TRIGGER when: working with standard java.util.zip or unrelated archive libraries."
+---
+
 # Archie - Streaming Archive Transformation Library
 
 Java library for stream-based manipulation of archive files (ZIP, JAR, TAR.GZ). Apply transformations on-the-fly without extracting to disk: inject entries, replace content, prepend text, skip entries, and enhance bytecode -- all while streaming.

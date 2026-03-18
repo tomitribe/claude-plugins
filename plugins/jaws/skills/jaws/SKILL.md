@@ -1,3 +1,7 @@
+---
+description: "Reference for org.tomitribe.jaws.s3 typed S3 proxy library. TRIGGER when: code imports from org.tomitribe.jaws, uses S3.Dir/S3.File interfaces, or user needs strongly-typed Java proxy interfaces for Amazon S3 bucket operations. DO NOT TRIGGER when: working directly with the AWS SDK S3 client."
+---
+
 # JAWS - Java AWS S3 Typed Proxy Library
 
 Strongly-typed, proxy-based Java abstraction for Amazon S3. Define plain Java interfaces that mirror your bucket structure; JAWS uses dynamic proxies to translate method calls into S3 API operations. No manual key construction, no pagination handling, no S3 SDK boilerplate.

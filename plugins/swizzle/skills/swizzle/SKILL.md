@@ -1,3 +1,7 @@
+---
+description: "Reference for org.tomitribe.swizzle.stream stream manipulation and lexer library. TRIGGER when: code imports from org.tomitribe.swizzle, or user needs to find/replace/transform data in InputStreams using fixed string tokens, stream filters, or stream lexing. DO NOT TRIGGER when: working with regex-based stream processing or unrelated stream libraries."
+---
+
 # Swizzle - Stream Manipulation Library
 
 Java library for finding, manipulating, and transforming data in streams using fixed string tokens (no regex). Provides stream filters for on-the-fly transformation and a stream lexer for token extraction. Memory-efficient with fixed-size buffers.

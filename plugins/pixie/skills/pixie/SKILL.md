@@ -1,3 +1,7 @@
+---
+description: "Reference for org.tomitribe.pixie lightweight dependency injection, configuration, and event library. TRIGGER when: code imports from org.tomitribe.pixie, uses @Param/@Component/@Default/@Event/@Observes annotations, or user needs constructor injection with properties-based configuration. DO NOT TRIGGER when: working with CDI, Spring, or Guice."
+---
+
 # Pixie - Lightweight Dependency Injection, Configuration & Events
 
 Tiny 100KB Java library for constructor injection, properties-based configuration, and an observer-pattern event system.

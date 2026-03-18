@@ -1,3 +1,7 @@
+---
+description: "Reference for org.tomitribe.util Java utility library. TRIGGER when: code imports from org.tomitribe.util or sub-packages, or user mentions tomitribe-util, Duration, Size, IO, Files, Archive, StringTemplate, Converter, ObjectMap, Generics, Hex, Base32, Base64, XxHash, Join, Options, or related utility classes. DO NOT TRIGGER when: working with unrelated utility libraries."
+---
+
 # tomitribe-util — Java Utility Library
 
 Comprehensive utility library with zero runtime dependencies. Covers encoding/decoding, I/O, file operations, duration/size parsing, string templates, type conversion, collections, reflection, hashing, and more.
