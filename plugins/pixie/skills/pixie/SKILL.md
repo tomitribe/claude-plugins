@@ -1,5 +1,5 @@
 ---
-description: "Reference for org.tomitribe.pixie lightweight dependency injection, configuration, and event library. TRIGGER when: code imports from org.tomitribe.pixie, uses @Param/@Component/@Default/@Event/@Observes annotations, or user needs constructor injection with properties-based configuration. DO NOT TRIGGER when: working with CDI, Spring, or Guice."
+description: "Reference for org.tomitribe.pixie lightweight dependency injection, configuration, and event library. TRIGGER when: code imports from org.tomitribe.pixie, uses @Param/@Component/@Default/@Event/@Observes/@Factory/@Builder annotations, or user needs constructor injection with properties-based configuration. DO NOT TRIGGER when: working with CDI, Spring, or Guice."
 ---
 
 # Pixie - Lightweight Dependency Injection, Configuration & Events
@@ -14,10 +14,10 @@ Use Pixie anywhere you would use reflection to instantiate a Java object.
 ```xml
 <groupId>org.tomitribe.pixie</groupId>
 <artifactId>pixie</artifactId>
-<version>2.0</version>
+<version>2.12</version>
 ```
 
-## Constructor Annotations
+## Annotations
 
 All annotations are in `org.tomitribe.pixie`. Every constructor parameter Pixie uses must be annotated with one of these:
 
@@ -33,17 +33,55 @@ All annotations are in `org.tomitribe.pixie`. Every constructor parameter Pixie 
 | `@Factory`   | METHOD    | Marks a static factory method for object creation              |
 | `@Builder`   | METHOD    | Marks a static method returning a builder class                |
 
-## Annotating Classes for Pixie
-
 Every constructor parameter must have exactly one of `@Param`, `@Component`, `@Name`, or `@Event`.
 `@Default` and `@Nullable` are modifiers used alongside `@Param` or `@Component`.
 
-```java
-import org.tomitribe.pixie.Component;
-import org.tomitribe.pixie.Default;
-import org.tomitribe.pixie.Name;
-import org.tomitribe.pixie.Param;
+---
 
+## Configuration via Properties
+
+Components are declared using `new://` syntax. Properties are set as `name.param = value`. Component references use `@` prefix.
+
+```properties
+jane = new://org.example.Person
+jane.age = 37
+jane.address = @home
+
+home = new://org.example.Address
+home.street = 820 Roosevelt Street
+home.city = River Falls
+home.state = WI
+home.zipcode = 54022
+home.country = USA
+```
+
+### Declaration Order Matters
+
+The order components are declared in the properties file is preserved. This matters for by-type resolution — when multiple components match, the **first declared** match is selected.
+
+### Case Insensitivity
+
+All property keys are case insensitive — component names, param names, and `@` references are all matched without regard to case. `user.name`, `User.Name`, and `USER.NAME` are equivalent.
+
+### Strict Validation
+
+If a property is specified in the configuration but does not match any constructor parameter, Pixie throws `UnknownPropertyException` at startup. This prevents typos or stale properties from going unnoticed.
+
+### Loading Properties
+
+```java
+final Properties properties = new Properties();
+properties.load(...);
+
+final System system = new System(properties);
+final Person person = system.get(Person.class);
+```
+
+---
+
+## Annotating Classes
+
+```java
 public class Person {
     private final String name;
     private final int age;
@@ -59,197 +97,491 @@ public class Person {
 }
 
 public class Address {
-    private final String street;
-    private final String city;
-    private final State state;
-    private final int zipcode;
-    private final String country;
-
     public Address(@Param("street") final String street,
                    @Param("city") final String city,
                    @Param("state") final State state,
                    @Param("zipcode") final int zipcode,
                    @Param("country") @Default("USA") final String country) {
-        this.street = street;
-        this.city = city;
-        this.state = state;
-        this.zipcode = zipcode;
-        this.country = country;
+        // ...
     }
 }
 ```
 
-## `@Param` — Property Binding
+---
 
-Binds a constructor parameter to a configuration property. Any Java type that can be constructed from a `String` is supported. Pixie looks for:
+## `@Param` — Property Binding and Type Conversion
 
-1. A public constructor with a single `String` parameter
-2. A public static method with a single `String` parameter returning the type
+Binds a constructor parameter to a configuration property. All values originate as strings and are converted automatically.
+
+### Conversion Chain (first match wins)
+
+1. Registered `java.beans.PropertyEditor`
+2. `Enum.valueOf()` — case-insensitive (exact, then uppercase, then lowercase)
+3. `Constructor(String)` — any public constructor taking a single `String`
+4. `Constructor(CharSequence)` — any public constructor taking `CharSequence`
+5. Public static factory method — any public static method taking `String` and returning the type (`valueOf`, `of`, `parse`, `from`, or any name)
+
+### Built-in Types
+
+| Category | Types |
+|----------|-------|
+| Primitives & wrappers | `byte`, `short`, `int`, `long`, `float`, `double`, `boolean`, `char` and boxed |
+| Strings | `String`, `CharSequence` |
+| Enums | Any enum type (case-insensitive matching) |
+| Files & paths | `java.io.File` |
+| Network | `java.net.URI`, `java.net.URL` |
+| Time | `java.util.concurrent.TimeUnit` |
+| tomitribe-util | `Duration` (e.g., `"30 seconds"`, `"5m"`), `Size` (e.g., `"10mb"`, `"2.5 gb"`) |
+
+### Custom Types
+
+Any class with a `public Constructor(String)` automatically works:
 
 ```java
-public class User {
-    public User(@Param("username") final String username,
-                @Param("age") final int age) { ... }
+public class EmailAddress {
+    public EmailAddress(final String value) {
+        if (!value.contains("@")) throw new IllegalArgumentException("Invalid: " + value);
+        this.value = value;
+    }
 }
 ```
 
-Maps to properties:
+```java
+public NotificationService(@Param("admin") final EmailAddress admin) { ... }
+```
 
 ```properties
-user=new://org.example.User
-user.username=alice
-user.age=30
+notifications = new://org.example.NotificationService
+notifications.admin = admin@example.com
 ```
 
-## `@Default` — Default Values
-
-Provides a fallback value when a property is not configured. Works with both `@Param` and `@Component`.
-
-```java
-public Address(@Param("country") @Default("USA") final String country) { ... }
-```
-
-When used on `@Component`, it specifies the default component name to inject.
+---
 
 ## `@Component` — Dependency Injection
 
-Injects a dependent object. Resolution works two ways:
+Injects a dependent object. Resolution works in several ways.
 
-**By name** — when a `@Param` value is provided with `@` prefix:
+### By Name
+
+Set the property value to `@` followed by the component name:
 
 ```properties
-cart=new://org.example.ShoppingCart
-cart.processor=@stripe
+cart = new://org.example.ShoppingCart
+cart.processor = @stripe
 
-stripe=new://org.example.StripeProcessor
+stripe = new://org.example.StripeProcessor
+stripe.apiKey = sk_live_abc123
 ```
 
 ```java
-public ShoppingCart(@Param("processor") @Component final PaymentProcessor processor) { ... }
+public ShoppingCart(@Param("processor") @Component
+                    final PaymentProcessor processor) { ... }
 ```
 
-**By type** — when no `@Param` value is given, Pixie finds a matching object by type. If multiple exist, they are sorted descending by name and the first is picked:
+Use named references when multiple components implement the same interface and you need a specific one:
 
 ```properties
-cart=new://org.example.ShoppingCart
+orderCart = new://org.example.ShoppingCart
+orderCart.processor = @stripe
+
+donationCart = new://org.example.ShoppingCart
+donationCart.processor = @paypal
 ```
 
-A `ConstructionFailedException` is thrown if no matching object is found.
+### By Type
 
-### Adding Pre-built Components
+When no `@Param` value is given, Pixie finds a matching component by type. A component matches if it is **assignable** to the parameter type (same rule as `instanceof`). When multiple match, the **first declared** component wins.
 
-Objects can be added directly to the System before loading properties:
+```properties
+# StripeProcessor is the default (declared first)
+stripe = new://org.example.StripeProcessor
+stripe.apiKey = sk_live_abc123
+
+paypal = new://org.example.PaypalProcessor
+paypal.clientId = AaBb123
+
+# Gets StripeProcessor automatically (first match by type)
+cart = new://org.example.ShoppingCart
+```
+
+A `ConstructionFailedException` is thrown if no matching component is found.
+
+### Generic Type Narrowing (v2.12)
+
+When a `@Component` parameter has generic type arguments, Pixie narrows matching to only components whose resolved generics are compatible. Raw type parameters (no generics) match any implementation for backwards compatibility.
+
+```java
+public interface RequestHandler<I, O> {
+    O handle(I input);
+}
+
+public class ApiGateway {
+    public ApiGateway(@Param("handler") @Component
+                      final RequestHandler<APIGatewayProxyRequestEvent,
+                                           APIGatewayV2HTTPResponse> handler) {
+        // Only RequestHandler implementations with matching type
+        // arguments will be injected
+    }
+}
+```
+
+#### Wildcards
+
+Wildcards follow standard Java assignability rules:
+
+```java
+// Matches any RequestHandler whose first type argument extends Number
+@Component RequestHandler<? extends Number, ?> handler
+
+// Matches any RequestHandler whose first type argument is a supertype of Integer
+@Component RequestHandler<? super Integer, ?> handler
+
+// Matches any RequestHandler regardless of type arguments
+@Component RequestHandler<?, ?> handler
+```
+
+Nested parameterized bounds such as `? extends Comparable<String>` are supported.
+
+#### Mixed Generic Resolution
+
+Type arguments can come from multiple sources and are correctly stitched together — some from the producer declaration, others from the class hierarchy. For example, a factory returning `BooleanHandler<String>` where `BooleanHandler<I> implements RequestHandler<I, Boolean>` correctly resolves to `RequestHandler<String, Boolean>`.
+
+### Collection Injection
+
+A `@Component` parameter can be any `Collection` type to inject multiple components at once.
+
+| Parameter Type | Default Implementation |
+|---------------|----------------------|
+| `List<T>` | `ArrayList` |
+| `Set<T>` | `LinkedHashSet` (preserves insertion order) |
+| `Queue<T>` | `ArrayDeque` |
+| `Collection<T>` | `ArrayList` |
+
+#### Collect All by Type
+
+When no value is specified, Pixie collects **all** components of the matching type:
+
+```java
+public class Pipeline {
+    public Pipeline(@Param("handlers") @Component
+                    final List<Handler> handlers) {
+        // All Handler instances in the system
+    }
+}
+```
+
+#### Select Specific by Name
+
+List component names with `@` references separated by spaces:
+
+```properties
+pipeline = new://org.example.Pipeline
+pipeline.handlers = @handlerA @handlerB @handlerC
+```
+
+#### Generic Filtering on Collections
+
+When the collection element type has generic type arguments, only matching components are collected:
+
+```java
+public class CountHandler implements RequestHandler<String, Integer> { ... }
+public class LengthHandler implements RequestHandler<String, Integer> { ... }
+public class ValidHandler implements RequestHandler<String, Boolean> { ... }
+public class FetchHandler implements RequestHandler<URI, String> { ... }
+
+public class Pipeline {
+    public Pipeline(@Param("handlers") @Component
+                    final List<RequestHandler<String, Integer>> handlers) {
+        // handlers contains CountHandler and LengthHandler only
+        // ValidHandler and FetchHandler are excluded
+    }
+}
+```
+
+Raw collection types (`List<RequestHandler>`) collect all implementations. Wildcards work too:
+
+```java
+// Collects any RequestHandler whose input type extends Number
+@Param("handlers") @Component List<RequestHandler<? extends Number, ?>> handlers
+```
+
+### Pre-built Instances
+
+Objects can be added directly to the System:
 
 ```java
 final System system = new System();
-system.add("home", new Address("820 Roosevelt Street", "River Falls", State.WI, 54022, "USA"));
+system.add("home", new Address("820 Roosevelt Street",
+        "River Falls", State.WI, 54022, "USA"));
 system.load(properties);
 ```
 
-## `@Nullable` — Optional Parameters
+Added without a name, instances are resolved by type. Useful for third-party objects, runtime values, and test doubles.
 
-Allows a parameter to be `null` when not configured, instead of throwing an error:
+---
 
-```java
-public Notification(@Param("message") final String message,
-                    @Nullable @Param("footer") final String footer) { ... }
-```
+## Producers — How Components Are Created
 
-## `@Name` — Component Name Injection
+### Constructor (default)
 
-Injects the component's name from the configuration:
+The most common approach. Annotate a public constructor's parameters:
 
 ```java
-public Service(@Name final String serviceName) { ... }
-```
-
-If configured as `myService=new://com.example.Service`, the constructor receives `"myService"`.
-
-## `@Event` — Event Firing
-
-Injects a `Consumer<T>` that fires events to all observers in the System:
-
-```java
-public class OrderService {
-    private final Consumer<OrderPlaced> event;
-
-    public OrderService(@Event final Consumer<OrderPlaced> event) {
-        this.event = event;
-    }
-
-    public void placeOrder(final String orderId) {
-        event.accept(new OrderPlaced(orderId));
+public class Person {
+    public Person(@Name final String name,
+                  @Param("age") final int age,
+                  @Param("address") @Component final Address address) {
+        // ...
     }
 }
 ```
 
-## `@Observes` — Event Listening
+Rules:
+- Constructor must be **public**
+- Every parameter must be annotated
+- If multiple constructors exist, Pixie uses the fully annotated one
 
-Marks a method parameter as an event listener. The method is called when a matching event is fired:
+### `@Factory` — Static Factory Method
+
+A public static method that Pixie calls to create the component. Useful when the constructor is private, when you need validation before construction, or when producing instances of a class you don't own.
+
+**Factory in the same class:**
 
 ```java
-public class OrderListener {
-    public void onOrderPlaced(@Observes final OrderPlaced event) {
-        System.out.println("Order placed: " + event.getOrderId());
+public class Person {
+    private Person(final String name, final Integer age, final Address address) { ... }
+
+    @Factory
+    public static Person create(@Name final String name,
+                                @Param("age") @Nullable final Integer age,
+                                @Param("address") @Component final Address address) {
+        return new Person(name, age, address);
     }
 }
 ```
 
-Observation is polymorphic — you can observe by any assignable type, including `Object` to receive all events:
+**Factory in a separate class** — the properties reference the factory class:
 
 ```java
+public class PersonFactory {
+    @Factory
+    public static Person create(@Name final String name,
+                                @Param("age") @Nullable final Integer age,
+                                @Param("address") @Component final Address address) {
+        return new Person(name, age, address);
+    }
+}
+```
+
+```properties
+jane = new://org.example.PersonFactory
+jane.age = 37
+jane.address = @home
+```
+
+The component is registered by the **return type** of the factory method, not the factory class:
+
+```java
+final Person jane = system.get(Person.class);
+```
+
+Rules:
+- Method must be **public** and **static** and annotated with `@Factory`
+- All parameters must be annotated with Pixie annotations
+- Method name does not matter
+- If a class has both `@Factory` and a constructor, `@Factory` takes priority
+
+### `@Builder` — Builder Pattern
+
+A `@Builder` method returns a builder object whose setter methods have Pixie-annotated parameters. Pixie calls setters, then `build()`.
+
+```java
+public class Person {
+    @Builder
+    public static PersonBuilder builder() {
+        return new PersonBuilder();
+    }
+
+    public static class PersonBuilder {
+        private String name;
+        private Integer age;
+        private Address address;
+
+        public PersonBuilder name(@Name final String name) {
+            this.name = name;
+            return this;
+        }
+
+        public PersonBuilder age(@Param("age") @Nullable final Integer age) {
+            this.age = age;
+            return this;
+        }
+
+        public PersonBuilder address(@Param("address") @Component final Address address) {
+            this.address = address;
+            return this;
+        }
+
+        public Person build() {
+            return new Person(name, age, address);
+        }
+    }
+}
+```
+
+The builder class can also live in a separate class. Configuration is the same:
+
+```properties
+jane = new://org.example.Person
+jane.age = 37
+jane.address = @home
+```
+
+Rules:
+- `@Builder` method must be **public** and **static**
+- Builder class must have a public `build()` method with no parameters
+- Each setter method has exactly **one** annotated parameter
+- Setter method names do not matter — Pixie matches by annotation
+- If both `@Factory` and `@Builder` exist, `@Factory` takes priority
+
+Builders preserve generic type information from the `build()` return type, allowing builders with generic return types to participate in generics-aware component matching.
+
+---
+
+## Events
+
+### Firing Events with `@Event`
+
+Injects a `Consumer<T>` that dispatches events to all observers in the System:
+
+```java
+public class ShoppingCart {
+    private final Consumer<OrderProcessed> orderProcessedEvent;
+
+    public ShoppingCart(@Event final Consumer<OrderProcessed> orderProcessedEvent) {
+        this.orderProcessedEvent = orderProcessedEvent;
+    }
+
+    public void order(final String orderId) {
+        orderProcessedEvent.accept(new OrderProcessed(orderId));
+    }
+}
+```
+
+A component can inject multiple event consumers for different types:
+
+```java
+public OrderService(@Event final Consumer<OrderPlaced> orderPlaced,
+                    @Event final Consumer<OrderShipped> orderShipped) { ... }
+```
+
+Events can also be fired directly on the System:
+
+```java
+system.fireEvent(new OrderProcessed("order123"));
+```
+
+### Observing Events with `@Observes`
+
+Marks a method parameter as an event listener:
+
+```java
+public class EmailReceipt {
+    public void onOrderProcessed(@Observes final OrderProcessed event) {
+        sendEmail(event.getId());
+    }
+}
+```
+
+Multiple observers, multiple event types, multiple observer methods per component — all supported.
+
+#### Polymorphic Observation
+
+Observation is polymorphic — matches any event **assignable** to the parameter type:
+
+```java
+// Receives OrderProcessed and any subclass
+public void onOrder(@Observes final OrderProcessed event) { ... }
+
+// Receives every event in the system
 public void onAny(@Observes final Object event) { ... }
 ```
 
-## `@Factory` — Static Factory Methods
+#### Most-Specific Matching
 
-Marks a static method as the factory for creating the object. The method's parameters follow the same annotation rules:
+When both a supertype and subtype observer exist, only the **most specific** match is called:
 
 ```java
-public class Connection {
-    @Factory
-    public static Connection create(@Param("url") final String url,
-                                     @Param("timeout") @Default("30") final int timeout) {
-        return new Connection(url, timeout);
+public class Listener {
+    // Called for Integer events
+    public void onInteger(@Observes final Integer event) { ... }
+
+    // Called for Long, Double, etc. — but NOT Integer
+    public void onNumber(@Observes final Number event) { ... }
+}
+```
+
+#### Exception Handling
+
+Observer exceptions do not propagate to the event producer. Instead, Pixie fires an `ObserverFailed` event:
+
+```java
+public class ErrorHandler {
+    public void onFailure(@Observes final ObserverFailed event) {
+        log.error("Observer " + event.getMethod().getName() + " failed",
+                  event.getThrowable());
     }
 }
 ```
 
-## `@Builder` — Builder Pattern Support
+### BeforeEvent and AfterEvent
 
-Marks a static method that returns a builder object. Pixie calls the builder's `build()` method after setting properties:
+Pixie wraps every event dispatch in lifecycle wrappers:
 
 ```java
-public class Config {
-    @Builder
-    public static ConfigBuilder builder() {
-        return new ConfigBuilder();
+public class SecurityCheck {
+    public void beforeOrder(@Observes final BeforeEvent<OrderProcessed> event) {
+        // Runs before any @Observes OrderProcessed methods
+        validatePermissions(event.getEvent());
+    }
+}
+
+public class Metrics {
+    public void afterOrder(@Observes final AfterEvent<OrderProcessed> event) {
+        // Runs after all @Observes OrderProcessed methods
+        recordMetric("order.processed");
     }
 }
 ```
 
-## Configuration via Properties
+Execution order: `BeforeEvent<T>` → `T` observers → `AfterEvent<T>`
 
-Components are declared using `new://` syntax. Properties are set as `name.param=value`. Component references use `@` prefix.
+Type matching uses the generic argument — `BeforeEvent<Number>` fires before any `Integer`, `Long`, etc.
 
-```properties
-jane=new://org.example.Person
-jane.age=37
-jane.address=@home
+### Built-in Events
 
-home=new://org.example.Address
-home.street=820 Roosevelt Street
-home.city=River Falls
-home.state=WI
-home.zipcode=54022
-home.country=USA
+| Event | Fired When |
+|-------|-----------|
+| `PixieLoad` | After `system.load(properties)` completes. Contains the loaded `Properties`. |
+| `PixieClose` | When `system.close()` is called. |
+| `ComponentAdded<T>` | A component is added to the System. Contains the type and instance. |
+| `ComponentRemoved<T>` | A component is removed from the System. |
+| `ObserverAdded` | An observer is registered with the System. |
+| `ObserverRemoved` | An observer is unregistered. |
+| `BeforeEvent<T>` | Before an event of type `T` is dispatched. |
+| `AfterEvent<T>` | After an event of type `T` has been dispatched. |
+| `ObserverFailed` | An observer method threw an exception. Contains observer, method, event, and throwable. |
+| `ObserverNotFound` | No observers exist for a fired event. |
+
+`System` implements `Closeable`, so it works with try-with-resources:
+
+```java
+try (final System system = new System(properties)) {
+    // PixieLoad fires after construction
+} // PixieClose fires here
 ```
 
-### Configuration Rules
-
-- **Case insensitive** — `user.name`, `User.Name`, and `USER.NAME` are equivalent
-- **Strict validation** — extra properties not matching any constructor parameter throw `UnknownPropertyException` at startup
-- **Warn mode** — use `warnOnUnusedProperties` to log warnings instead of throwing exceptions
+---
 
 ## System API
 
@@ -258,8 +590,8 @@ home.country=USA
 ```java
 new System()                                          // empty system
 new System(Properties properties)                     // load from properties
-new System(boolean warnOnUnusedProperties)             // empty with warn mode
-new System(Properties properties, boolean warn)        // load with warn mode
+new System(boolean warnOnUnusedProperties)            // empty with warn mode
+new System(Properties properties, boolean warn)       // load with warn mode
 ```
 
 ### Loading & Retrieving Components
@@ -270,7 +602,8 @@ void           load(Properties properties)             // load additional proper
 <T> T          get(Class<T> type, String name)         // get by type and name
 <T> List<T>    getAll(Class<T> type)                   // get all matching type
 List<Object>   getAnnotated(Class<? extends Annotation> type)  // get by annotation
-<T> void       add(String name, T value)               // add pre-built component
+<T> void       add(String name, T value)               // add pre-built component by name
+<T> void       add(T value)                            // add pre-built component by type
 ```
 
 ### Events
@@ -287,6 +620,8 @@ boolean            removeObserver(Object observer)      // unregister observer
 ```java
 void close()   // fires PixieClose event, implements Closeable
 ```
+
+---
 
 ## System.builder() — Fluent Builder API
 
@@ -333,6 +668,8 @@ DefinitionBuilder    definition(Class<?> type, String name)    // chain next nam
 System               build()                                   // build the System
 ```
 
+---
+
 ## Instance.builder() — Single Object Builder
 
 Build a single object without a full System:
@@ -359,20 +696,97 @@ Builder<T>  warnOnUnusedProperties()               // warn instead of throw for 
 T           build()                                // build the instance
 ```
 
-## Built-in Events
+---
 
-| Event              | Fired When                         |
-|--------------------|------------------------------------|
-| `PixieLoad`        | After `system.load()` completes    |
-| `PixieClose`       | When `system.close()` is called    |
-| `ComponentAdded`   | A component is added to the System |
-| `ComponentRemoved` | A component is removed             |
-| `ObserverAdded`    | An observer is registered          |
-| `ObserverRemoved`  | An observer is unregistered        |
-| `ObserverFailed`   | An observer method threw            |
-| `ObserverNotFound` | No observers found for an event    |
-| `BeforeEvent`      | Before an event is dispatched      |
-| `AfterEvent`       | After an event is dispatched       |
+## Testing
+
+### Plain Java — No Framework Needed
+
+Every Pixie component can be instantiated with `new`:
+
+```java
+@Test
+public void testPerson() {
+    final Address home = new Address("820 Roosevelt Street",
+            "River Falls", State.WI, 54022, "USA");
+    final Person person = new Person("jane", 37, home);
+    assertEquals("jane", person.getName());
+}
+```
+
+#### Testing Events with Consumer
+
+`@Event Consumer<T>` is just a constructor parameter. Pass a lambda:
+
+```java
+@Test
+public void testOrderFiresEvent() {
+    final List<OrderProcessed> firedEvents = new ArrayList<>();
+    final ShoppingCart cart = new ShoppingCart(firedEvents::add);
+
+    cart.order("order-123");
+
+    assertEquals(1, firedEvents.size());
+    assertEquals("order-123", firedEvents.get(0).getId());
+}
+```
+
+#### Testing Observers
+
+Observer methods are regular methods — call them directly:
+
+```java
+@Test
+public void testEmailReceipt() {
+    final EmailReceipt receipt = new EmailReceipt();
+    receipt.onOrderProcessed(new OrderProcessed("order-456"));
+    assertEquals(1, receipt.getOrdersProcessed().size());
+}
+```
+
+### System.builder() — Integration Tests
+
+For tests that exercise full Pixie wiring:
+
+```java
+@Test
+public void testFullSystem() {
+    final System system = System.builder()
+            .definition(Person.class, "jane")
+            .param("age", 37)
+            .comp("address", "home")
+            .definition(Address.class, "home")
+            .param("street", "820 Roosevelt Street")
+            .param("city", "River Falls")
+            .param("state", "WI")
+            .param("zipcode", "54022")
+            .build();
+
+    final Person jane = system.get(Person.class);
+    assertEquals(37, jane.getAge());
+}
+```
+
+#### Injecting Test Doubles
+
+Use `add()` to substitute mocks or stubs:
+
+```java
+@Test
+public void testWithMockProcessor() {
+    final List<String> charged = new ArrayList<>();
+
+    final System system = System.builder()
+            .add("stripe", (PaymentProcessor) charged::add)
+            .definition(ShoppingCart.class, "cart")
+            .build();
+
+    system.get(ShoppingCart.class).order("order-101");
+    assertEquals(1, charged.size());
+}
+```
+
+---
 
 ## Key Exceptions
 
