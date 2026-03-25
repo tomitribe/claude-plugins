@@ -58,6 +58,11 @@
       "name": "tomitribe-util",
       "source": "./plugins/tomitribe-util",
       "description": "Tomitribe utility library — encoding, I/O, duration/size, templates, collections, reflection, and more"
+    },
+    {
+      "name": "workflow",
+      "source": "./plugins/workflow",
+      "description": "Collaboration workflow commands: /design (design sessions), /improve (compounding CLAUDE.md), /handoff (session continuity)"
     }
   ]
 }
