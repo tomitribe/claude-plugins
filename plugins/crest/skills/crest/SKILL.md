@@ -51,6 +51,108 @@ Parameters:
 - `usage` -- custom usage/synopsis text
 - `interceptedBy` -- array of interceptor classes
 
+### Multi-Level Command Groups
+
+Command groups can nest to any depth using space-separated names in `@Command`.
+Each token becomes a level in the hierarchy.
+
+```java
+/**
+ * Quote management
+ */
+@Command("quote")
+public class QuoteCommands {
+
+    /** Create a quote */
+    @Command
+    public void create(@Option("name") final String name) { ... }
+
+    /** Remove a quote */
+    @Command
+    public void remove(@Option("id") final String id) { ... }
+}
+
+/**
+ * Manage line items
+ */
+@Command("quote line-item")
+public class QuoteLineItemCommands {
+
+    /** Create a line item */
+    @Command
+    public void create(@Option("product") final String product,
+                       @Option("quantity") final int quantity) { ... }
+
+    /** Delete a line item */
+    @Command
+    public void delete(@Option("id") final String id) { ... }
+
+    /** List line items */
+    @Command
+    public void list() { ... }
+}
+```
+
+CLI usage: `quote create --name="Acme"`, `quote line-item create --product=Widget --quantity=10`
+
+The resulting hierarchy:
+
+```
+quote
+├── create       Create a quote
+├── remove       Remove a quote
+└── line-item
+    ├── create   Create a line item
+    ├── delete   Delete a line item
+    └── list     List line items
+```
+
+#### Method-Level Path Concatenation
+
+Class and method `@Command` values concatenate following the JAX-RS `@Path` model.
+A method can contribute additional group levels:
+
+```java
+@Command("quote")
+public class QuoteCommands {
+
+    /** Create a quote */
+    @Command
+    public void create(@Option("name") final String name) { ... }
+
+    /** Create a line item */
+    @Command("line-item create")
+    public void lineItemCreate(@Option("product") final String product) { ... }
+
+    /** Delete a line item */
+    @Command("line-item delete")
+    public void lineItemDelete(@Option("id") final String id) { ... }
+}
+```
+
+This produces the same hierarchy as the separate-class example. The two approaches
+mix freely — some sub-commands defined inline via method paths, others contributed
+by separate classes.
+
+Both class and method paths can be multi-word. `@Command("app server")` on the class
+with `@Command("config set")` on a method produces `app server config set`.
+
+#### Intermediate Group Auto-Creation
+
+Intermediate groups are created automatically (mkdir -p style). If
+`@Command("quote line-item")` is declared but no class declares `@Command("quote")`,
+the `quote` group is auto-created with no description. If a class later provides
+`@Command("quote")` with a description, it merges in.
+
+#### Collision Detection
+
+A name cannot be both a leaf command and a group containing sub-commands. If a class
+has a method named `setting` (producing a leaf command) and a separate class declares
+`@Command("config setting")` (producing a group), the framework throws an error.
+
+Help navigates deep groups: `help quote`, `help quote line-item`,
+`help quote line-item create`.
+
 ### @Option (Parameter)
 
 Marks a parameter as a named CLI option. Unannotated parameters are positional arguments.
@@ -563,9 +665,10 @@ Crest provides a built-in `help` command and generates man-page-style documentat
 Registered automatically. No setup required.
 
 ```bash
-myapp help              # Lists all commands with descriptions
-myapp help commit       # Full man page for "commit"
-myapp help config set   # Man page for sub-command "set" in group "config"
+myapp help                          # Lists all commands with descriptions
+myapp help commit                   # Full man page for "commit"
+myapp help config set               # Man page for sub-command "set" in group "config"
+myapp help config setting add       # Man page for "add" in nested group "config setting"
 ```
 
 ### Command Descriptions in Listings

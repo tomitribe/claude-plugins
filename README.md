@@ -61,3 +61,8 @@ Before `/clear`, dumps session state to `HANDOFF.md` so the next session picks
 up cleanly. Covers what was done, decisions made, what's next, gotchas, and
 how to continue.
 
+### `/recap`
+
+Quick "where was I?" for when you return to an open session. Summarizes what
+you were working on, what got done, where you left off, and what's next.
+
