@@ -1,4 +1,5 @@
 ---
+name: churchkey
 description: "Reference for io.churchkey cryptographic key library. TRIGGER when: code imports from io.churchkey, or user needs to parse/export cryptographic keys in PEM, JWK, OpenSSH, or SSH2 formats, or work with RSA/DSA/EC keys across formats. DO NOT TRIGGER when: working with raw JCA/JCE key classes or unrelated crypto libraries."
 ---
 

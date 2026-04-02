@@ -1,4 +1,5 @@
 ---
+name: checkmate
 description: "Reference for org.tomitribe.checkmate fluent validation library. TRIGGER when: code imports from org.tomitribe.checkmate, or user needs runtime condition validation with formatted output, configuration checks, or deployment assertions. DO NOT TRIGGER when: working with Bean Validation (JSR 380) or unrelated validation frameworks."
 ---
 

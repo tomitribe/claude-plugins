@@ -1,4 +1,5 @@
 ---
+name: tomitribe-util
 description: "Reference for org.tomitribe.util Java utility library. TRIGGER when: code imports from org.tomitribe.util or sub-packages, or user mentions tomitribe-util, Duration, Size, IO, Files, Archive, StringTemplate, Converter, ObjectMap, Generics, Hex, Base32, Base64, XxHash, Join, Options, or related utility classes. DO NOT TRIGGER when: working with unrelated utility libraries."
 ---
 

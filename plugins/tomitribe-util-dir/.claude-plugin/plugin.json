@@ -1,7 +1,7 @@
 {
   "name": "tomitribe-util-dir",
   "description": "Strongly-typed filesystem manipulation with Dir proxy interfaces",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": {
     "name": "Tomitribe"
   }

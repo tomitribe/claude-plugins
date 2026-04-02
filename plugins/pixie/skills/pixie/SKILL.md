@@ -1,4 +1,5 @@
 ---
+name: pixie
 description: "Reference for org.tomitribe.pixie lightweight dependency injection, configuration, and event library. TRIGGER when: code imports from org.tomitribe.pixie, uses @Param/@Component/@Default/@Event/@Observes/@Factory/@Builder annotations, or user needs constructor injection with properties-based configuration. DO NOT TRIGGER when: working with CDI, Spring, or Guice."
 ---
 

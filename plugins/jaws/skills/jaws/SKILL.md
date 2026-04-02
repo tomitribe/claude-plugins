@@ -1,4 +1,5 @@
 ---
+name: jaws
 description: "Reference for org.tomitribe.jaws.s3 typed S3 proxy library. TRIGGER when: code imports from org.tomitribe.jaws, uses S3.Dir/S3.File interfaces, or user needs strongly-typed Java proxy interfaces for Amazon S3 bucket operations. DO NOT TRIGGER when: working directly with the AWS SDK S3 client."
 ---
 

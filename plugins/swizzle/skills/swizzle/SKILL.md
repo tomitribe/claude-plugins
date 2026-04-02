@@ -1,4 +1,5 @@
 ---
+name: swizzle
 description: "Reference for org.tomitribe.swizzle.stream stream manipulation and lexer library. TRIGGER when: code imports from org.tomitribe.swizzle, or user needs to find/replace/transform data in InputStreams using fixed string tokens, stream filters, or stream lexing. DO NOT TRIGGER when: working with regex-based stream processing or unrelated stream libraries."
 ---
 

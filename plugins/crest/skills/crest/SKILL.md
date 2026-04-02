@@ -1,4 +1,5 @@
 ---
+name: crest
 description: "Reference for org.tomitribe.crest Java CLI framework. TRIGGER when: code imports from org.tomitribe.crest, uses @Command annotations, or user is building annotation-driven command-line tools in Java. DO NOT TRIGGER when: working with picocli, JCommander, or other CLI frameworks."
 ---
 

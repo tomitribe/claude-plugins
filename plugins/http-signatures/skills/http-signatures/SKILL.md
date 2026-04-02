@@ -1,4 +1,5 @@
 ---
+name: http-signatures
 description: "Reference for org.tomitribe.auth.signatures HTTP Signatures library. TRIGGER when: code imports from org.tomitribe.auth.signatures, or user needs to sign/verify HTTP messages using HMAC, RSA, ECDSA, or DSA (RFC draft Signing HTTP Messages). DO NOT TRIGGER when: working with unrelated authentication or signature libraries."
 ---
 

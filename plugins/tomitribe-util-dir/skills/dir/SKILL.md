@@ -1,4 +1,5 @@
 ---
+name: dir
 description: "Reference for org.tomitribe.util.dir Dir proxy-based filesystem library. TRIGGER when: code imports from org.tomitribe.util.dir or org.tomitribe.util.paths, uses Dir.of(), or user needs strongly-typed filesystem path references via dynamic proxy interfaces. DO NOT TRIGGER when: working with standard java.nio.file.Path or java.io.File directly."
 ---
 
