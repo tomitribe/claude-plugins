@@ -9,6 +9,19 @@ if [ ! -f "$INSTALLED" ]; then
   exit 1
 fi
 
+# Pull latest from all marketplace repos so claude plugin update sees new versions
+MARKETPLACES_DIR="$HOME/.claude/plugins/marketplaces"
+if [ -d "$MARKETPLACES_DIR" ]; then
+  for repo in "$MARKETPLACES_DIR"/*/; do
+    name=$(basename "$repo")
+    if [ -d "$repo/.git" ]; then
+      echo "Pulling marketplace: $name"
+      git -C "$repo" pull --quiet 2>&1 || echo "  WARN: failed to pull $name"
+    fi
+  done
+  echo ""
+fi
+
 # Extract plugin keys (format: "name@marketplace")
 plugins=$(python3 -c "
 import json, sys
