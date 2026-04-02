@@ -1,7 +1,7 @@
 {
   "name": "tomitribe-util",
   "description": "Tomitribe utility library reference \u2014 encoding, I/O, duration/size, templates, collections, reflection, and more",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "Tomitribe"
   }
