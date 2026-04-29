@@ -1,0 +1,8 @@
+{
+  "name": "resolve-conflicts",
+  "description": "Surgical merge conflict resolution — understand original commit intent and apply minimum necessary changes",
+  "version": "1.0.0",
+  "author": {
+    "name": "Tomitribe"
+  }
+}
