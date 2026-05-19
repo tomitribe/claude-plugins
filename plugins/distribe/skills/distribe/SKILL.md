@@ -1,64 +1,77 @@
 ---
 name: distribe
-description: "Reference for the Tomitribe Distribe CLI — Jenkins orchestration, S3 release distribution, Zendesk publishing, CVE customer fan-out. TRIGGER when: user runs `$DISTRIBE` / `distribe` commands, references `jenkins trigger`, `cve customers`, `zendesk publish`, `s3 changelog`, or asks how to publish a release / trigger a PR build / fan out CVE customers. DO NOT TRIGGER when: working with raw `curl` against Jenkins/Nexus, with the AWS CLI directly, or with Zendesk's web UI."
+description: "Reference for the Tomitribe Distribe CLI — Jenkins orchestration, S3 release distribution, Zendesk publishing, CVE customer fan-out, Nexus/Salesforce/Zendesk integration. TRIGGER when: user runs `distribe` commands, references subcommands like `jenkins trigger`, `cve customers`, `zendesk publish`, `s3 distribute`, `s3 batch-distribute`, `nexus cve-template`, or asks how to publish a release / trigger a PR build / fan out CVE customers. DO NOT TRIGGER when: working with raw `curl` against Jenkins/Nexus, with the AWS CLI directly, or with Zendesk's web UI."
 ---
 
 # Distribe — Tomitribe Release Distribution CLI
 
-Internal CLI used across the release / CVE / customer-notification pipeline.
+Internal Tomitribe CLI used across the release / CVE / customer-notification pipeline. Built from the `tomitribe/distribe` Maven multi-module project; the fat-jar entry point is `distribe-cli/target/distribe`.
 
-**Repo:** `~/devs/jeanouii/tomitribe/distribe` (built with Maven, multi-module).
+## Discovering commands
+
+Distribe is built on Crest, so the CLI is self-documenting. **Always prefer the built-in help over guessing**:
+
+```bash
+distribe help --all                 # flat list of every command + one-line description
+distribe help <group>               # subcommands in a group (e.g. distribe help jenkins)
+distribe help <group> <subcommand>  # full usage, flags, semantics, examples for one command
+```
+
+`distribe help <group> <subcommand>` is the source of truth — it ships with the build and reflects the exact flags compiled in. When unsure of an option or its default, read it from `help` rather than assuming.
 
 ## Locating the binary
 
-Distribe ships as two executables. **`distribe-cli`** is the full one used in scripts. `distribe-lite-cli` is a smaller variant for restricted environments.
+Distribe ships as two executables in a `distribe` checkout:
 
-```bash
-# Resolve once per session; fall back to a known path if $DISTRIBE is unset
-DISTRIBE="${DISTRIBE:-$HOME/devs/jeanouii/tomitribe/distribe/distribe-cli/target/distribe}"
-[ -x "$DISTRIBE" ] || { echo "Distribe not built. Run mvn install in ~/devs/jeanouii/tomitribe/distribe."; exit 1; }
-```
+- `distribe-cli/target/distribe` — the full CLI used by the release pipeline; this is the one referenced everywhere below as `distribe`.
+- `distribe-lite-cli/target/distribe-lite` — a smaller variant for restricted environments.
 
-If the binary is missing, the user has not built distribe yet — ask before silently running `mvn install` (it's a long build).
+If the binary is missing, the user has not built distribe yet. Ask before silently running `mvn install` — it's a long build.
 
 ## The `--config` flag
 
-Every command takes `--config=<name>`. The configs live in `~/.distribe/config` (managed via `distribe config`). The canonical current config is **`default-0.74`** (matches distribe `0.74-SNAPSHOT`). The `usa-0.74` variant is used when fanning out to USA support customers. Older configs (`default`, `default-0.73`) exist for legacy compatibility.
+Almost every command takes `--config=<name>`. Profiles live under `~/.tribe/distribe/` and are managed via `distribe config`:
 
 ```bash
-$DISTRIBE config list        # show all configured profiles
+distribe config list                       # show all profiles
+distribe config add <name>  --<key>=<val>  # create a new profile
+distribe config set <name>  --<key>=<val>  # update a key on a profile
+distribe config export <name>              # encrypted dump of a profile
+distribe config import <file>              # restore from an exported profile
+distribe config remove <name>
 ```
 
-When unsure, default to `--config=default-0.74` — that's what the team uses.
+Profiles carry credentials for AWS, Nexus, Salesforce, Zendesk, Jenkins, GitHub. The CLI default is `--config=default`; teams typically maintain version-suffixed variants (e.g. `default-<distribe-version>`) so the right environment is paired with the right CLI build. **Ask the user which profile to use** rather than assuming. Never paste credentials into chat — refer them to `config set`.
 
 ---
 
-## Top-level commands (subcommands listed below)
+## Top-level command groups
 
-| Command       | Purpose                                                                 |
+| Group         | Purpose                                                                 |
 |---------------|-------------------------------------------------------------------------|
 | `activity`    | Track / record release activity for reporting                           |
 | `apigateway`  | AWS API Gateway helpers                                                 |
-| `config`      | Manage local distribe profiles (`add`, `set`, `list`, `remove`, `import`, `export`) |
-| `customer`    | Customer / subscription operations (list, releases, mappings)           |
+| `config`      | Manage local distribe profiles                                          |
+| `customer`    | Customer / subscription operations (list, releases, mappings, extend)   |
 | `cve`         | CVE customer fan-out, notifications, ticket bookkeeping                 |
-| `github`      | GitHub helpers (issues, PRs)                                            |
-| `jenkins`     | Trigger / inspect Tomitribe CI jobs                                     |
-| `job`         | Internal job orchestration (long-running async work)                    |
-| `jwt` / `token` | Auth token operations                                                 |
-| `lambda`      | AWS Lambda fan-out helpers                                              |
-| `license`     | License generation                                                      |
-| `nexus`       | Nexus repository operations                                             |
-| `param`       | SSM parameter helpers                                                   |
-| `patch`       | Apply patches across products                                           |
-| `reporting`   | Generate activity reports                                               |
-| `s3`          | S3 release distribution, changelog, hashes                              |
+| `github`      | GitHub helpers (onboard / sync forks)                                   |
+| `jenkins`     | Trigger / inspect / configure Tomitribe CI jobs                         |
+| `job`         | Cron-like scheduling of distribe commands                               |
+| `jwt`         | Subscription JWT operations                                             |
+| `lambda`      | Deploy / promote AWS Lambdas                                            |
+| `license`     | License management                                                      |
+| `nexus`       | Nexus repository queries + CVE template generation                      |
+| `param`       | SSM Parameter Store helpers                                             |
+| `patch`       | Patch utilities (e.g. stale-ref detection across poms)                  |
+| `reporting`   | GA4 / BigQuery analytics & rollups                                      |
+| `s3`          | Release distribution: archive, distribute, changelog, hashes, batch     |
 | `sns`         | SNS notification helpers                                                |
-| `stripe`      | Stripe billing helpers                                                  |
+| `stripe`      | Stripe billing helpers (coupons, codes, price/product verification)     |
+| `token`       | Token generation                                                        |
 | `weaver`      | Bytecode weaving runner                                                 |
-| `zendesk`     | Zendesk article publishing, ticket creation, organization management    |
+| `zendesk`     | Download-page articles, tickets, orgs, segments, admin contacts         |
 
-Use `$DISTRIBE <command>` (no args) to list its subcommands; `$DISTRIBE <command> <subcommand>` to see options.
+`distribe help <group>` lists the subcommands; `distribe help <group> <subcommand>` shows full options.
 
 ---
 
@@ -66,33 +79,47 @@ Use `$DISTRIBE <command>` (no args) to list its subcommands; `$DISTRIBE <command
 
 ```bash
 # Trigger a PR build (manual-pr-trigger job)
-$DISTRIBE jenkins trigger <product> <branch> --pr=<NUMBER> --config=default-0.74
+distribe jenkins trigger <product> <branch> --pr=<PR_NUMBER>
+
 # Trigger a stable branch build (post-merge smoke)
-$DISTRIBE jenkins trigger <product> <branch> --stable --config=default-0.74
+distribe jenkins trigger <product> <branch> --stable
 
-# Poll a build (DO NOT pass positional args, jenkins status uses named flags)
-$DISTRIBE jenkins status --product=<product> --branch=<branch> --pr=<NUMBER> --config=default-0.74
-$DISTRIBE jenkins status --url=<BUILD_URL>                                  --config=default-0.74
-$DISTRIBE jenkins status --build=<BUILD_NUMBER> --product=<product> --branch=<branch> --config=default-0.74
+# Snapshot a build's status (named flags, NOT positional)
+distribe jenkins status --product=<product> --branch=<branch> --pr=<PR>
+distribe jenkins status --product=<product> --branch=<branch> --pr=<PR> --build=<N>
+distribe jenkins status --url=<full-build-url>
+distribe jenkins status --product=<product> --branch=<branch> --pr=<PR> --watch  # poll until done
 
-# Console output of a specific build
-$DISTRIBE jenkins console --url=<BUILD_URL> --config=default-0.74
+# Console output for a specific build
+distribe jenkins console --url=<BUILD_URL>
 
-# Read / write job config XML
-$DISTRIBE jenkins get-config <job-path> --config=default-0.74
-$DISTRIBE jenkins set-config <job-path> < new.xml --config=default-0.74
+# Read / write a job's config.xml
+distribe jenkins get-config <job-path>
+distribe jenkins set-config <job-path> < new.xml
+
+# Create the standard pair of jobs (stable + manual-pr-trigger) for a new branch
+distribe jenkins create-jobs <product> <branch>
+
+# Run stable + manual-PR-trigger in parallel and apply the flaky-comparison matrix
+distribe jenkins flaky-compare <product> <branch> --pr=<PR_NUMBER>
 ```
 
-**`<product>` is the Jenkins folder name** (e.g. `tomcat`, `tomee`, `activemq`).
-**`<branch>` is the Jenkins job basename**, which for Tomcat starts with `tomcat-` even when the git branch doesn't:
+**Key semantics from `help`**:
 
-| Product | Short id | Git branch          | Jenkins branch name (what `--branch` wants) |
-|---------|----------|---------------------|---------------------------------------------|
-| Tomcat  | 8.5      | `8.5.x-TT.x`        | `tomcat-8.5.x-TT.x`                         |
-| Tomcat  | 9.0      | `9.0.x-TT.x`        | `tomcat-9.0.x-TT.x`                         |
-| Tomcat  | 10.0     | `tomcat-10.0.x-TT.x`| `tomcat-10.0.x-TT.x`                        |
-| Tomcat  | 10.1     | `tomcat-10.1.x-TT.x`| `tomcat-10.1.x-TT.x`                        |
-| Tomcat  | 11.0     | `11.0.x-TT.x`       | `tomcat-11.0.x-TT.x`                        |
+- `jenkins trigger` polls the queue until the build URL appears, then returns *synchronously* with both queue and build URLs.
+- With `--pr=<N>`, the Jenkins build displayName is also set to `PR #<N> - <PR title>` (fetched via `gh pr view`).
+- `jenkins status` defaults to a terse snapshot (result + build-id + queued-at). Add `--watch` to poll up to ~90 minutes for completion plus a test-failure digest with an environmental-vs-test-specific heuristic.
+- `jenkins flaky-compare` triggers both jobs in parallel, watches both, and applies the 4-cell decision matrix (stable green / red × PR green / red) automatically — replaces the two-window Jenkins-UI dance.
+
+**Product / branch naming**: `<product>` is the Jenkins folder (e.g. `tomcat`, `tomee`, `activemq`). `<branch>` is the **Jenkins job basename**, which for Tomcat is prefixed `tomcat-` even when the git branch is not:
+
+| Product | Git branch          | Jenkins branch name (what `--branch` wants) |
+|---------|---------------------|---------------------------------------------|
+| Tomcat  | `8.5.x-TT.x`        | `tomcat-8.5.x-TT.x`                         |
+| Tomcat  | `9.0.x-TT.x`        | `tomcat-9.0.x-TT.x`                         |
+| Tomcat  | `tomcat-10.0.x-TT.x`| `tomcat-10.0.x-TT.x`                        |
+| Tomcat  | `tomcat-10.1.x-TT.x`| `tomcat-10.1.x-TT.x`                        |
+| Tomcat  | `11.0.x-TT.x`       | `tomcat-11.0.x-TT.x`                        |
 
 `trigger` is **positional** (`trigger <product> <branch>`); `status` and `console` are **named flags** (`--product`, `--branch`, `--pr`, `--url`). Mixing them up returns `Excess arguments: ...`.
 
@@ -100,95 +127,221 @@ $DISTRIBE jenkins set-config <job-path> < new.xml --config=default-0.74
 
 ## `cve` — CVE customer fan-out
 
+The CVE flow is staged. Stage numbers below mirror the internal CVE process doc.
+
 ```bash
-# Build the customer fan-out from a CVE-tracking issue (parses body for product+branches+CVE-IDs)
-$DISTRIBE cve customers <ISSUE_NUMBER>  --config=default-0.74
+# Stage 3 (preparation): read a GitHub issue and build the per-CVE working directory.
+# Issue-driven: product, branches, and CVE-IDs are inferred from the issue body.
+distribe cve customers <ISSUE_NUMBER>
 
-# Override the branches inferred from the issue
-$DISTRIBE cve customers <ISSUE_NUMBER>  --branches=8.0,9.0,10.0 --config=default-0.74
+# Override the inferred branches (subset re-run, or force a branch not yet in the issue)
+distribe cve customers <ISSUE_NUMBER> --branches=8.0,9.0,10.0
 
-# Override CVE IDs / versions (used when the issue body doesn't carry them in the canonical shape)
-$DISTRIBE cve customers <ISSUE_NUMBER>  --cve-ids-override=CVE-2026-42402,CVE-2026-42403 --versions=8.0.17-TT.19 --config=default-0.74
+# Override CVE IDs / versions when the issue body doesn't carry them canonically
+distribe cve customers <ISSUE_NUMBER> --cve-ids-override=CVE-2026-42402,CVE-2026-42403 --versions=8.0.17-TT.19
 
-# Drive the post-release flow once binaries are uploaded:
-$DISTRIBE cve notify-new-cve   --cve-dir=<dir created by `cve customers`>     --config=default-0.74
-$DISTRIBE cve notify-download  --branch=<branch> --version=<released TT version> --config=default-0.74
-$DISTRIBE cve solve-tickets    --cve-dir=<dir>   --config=default-0.74
-$DISTRIBE cve download-customers --cve-dir=<dir> --config=default-0.74
+# Override the output directory (default: ./customers-<CVE-ID>)
+distribe cve customers <ISSUE_NUMBER> --output-dir=./my-working-dir
+
+# Stage 3 (notification): create Zendesk tickets announcing the CVE
+distribe cve notify-new-cve --cve-dir=<working-dir>
+
+# Stage 7: notify the patched binary is downloadable
+distribe cve notify-download --branch=<branch> --version=<released TT version>
+
+# Stage 8: close every ticket created earlier in the flow
+distribe cve solve-tickets --cve-dir=<working-dir>
+
+# Audit who actually has the binary in their S3 bucket (vs `customers`, which lists ELIGIBLE)
+distribe cve download-customers --cve-dir=<working-dir>
 ```
 
-`cve customers` produces a working directory under `processed/<issue-id>/` (in the cve repo) with the resolved customer list, per-branch publish lists, and a `meta.properties` file used by the subsequent `notify-*` commands.
+`cve customers` writes to `./customers-<CVE-ID>/` by default (e.g. `./customers-CVE-2026-42403/`) containing:
+
+- per-tier customer lists (Annual / 3DS / Stripe / USA),
+- per-(tier, branch) validation reports — failures land in `_warnings.txt` and block downstream stages,
+- `meta.properties` consumed by `notify-new-cve` / `notify-download` / `solve-tickets`,
+- a `template.txt` generated via `distribe nexus cve-template --cve=<id>`.
+
+It replaces ~10 manual invocations per CVE (tier filters + per-branch validation + manual template fill).
+
+---
+
+## `nexus` — Repository queries & CVE template
+
+```bash
+# Latest releases for ALL default product/branch combinations
+distribe nexus cve-template
+
+# Filter to one product / branch
+distribe nexus cve-template --product=tomee
+distribe nexus cve-template --product=tomee --branch=8.0
+
+# Auto-fill the description from NVD using --cve
+distribe nexus cve-template --cve=CVE-2026-42403
+distribe nexus cve-template --cve=CVE-2026-42403 --product=tomee
+
+# Verbose: show source, candidate versions, priority used to pick "latest"
+distribe nexus cve-template --verbose=true
+
+# Latest release for an ad-hoc product/branch (also honours Maven Central)
+distribe nexus latest-release --product=activemq --branch=23.8
+distribe nexus latest-release --product=activemq --branch=23.8 --useMavenCentral=true
+
+# Download an artifact + version from Nexus to a local directory
+distribe nexus download <product> <version> <directory>
+```
+
+If a default branch is missing from `cve-template`, the recommended fix is to add it to `NexusCommand.java` in `distribe-core`; `nexus latest-release` is the no-code-change workaround.
 
 ---
 
 ## `s3` — Release distribution
 
 ```bash
-# Publish a changelog text file for a release (no Zendesk side effects)
-$DISTRIBE s3 changelog <product> <version> <changelog.txt> --config=default-0.74
+# Distribute a binary already in the archive to a set of customer buckets (sync gate)
+distribe s3 distribute <product> <version> --customers=<file>
+distribe s3 distribute <product> <version> --customer-id=<ID> [--customer-id=<ID> ...]
 
-# Push binaries from local Nexus checkout to S3 support-deliverable bucket
-$DISTRIBE s3 distribute <product> <version> ...           --config=default-0.74
+# Batched per-customer fan-out via SQS + Lambda (no webhook; multi-customer CVE flow)
+distribe s3 batch-distribute <product> <version> --customer-id=<ID> [--customer-id=<ID> ...]
+distribe s3 batch-distribute <product> <version> --customer-id=<ID> --correlation-id=<tag>
+distribe s3 batch-distribute <product> <version> --customer-id=<ID> --force        # re-weave even if present
+distribe s3 batch-distribute-status <correlation-id-or-job-id>                       # poll status
 
-# Generate / refresh SHA hashes for a release
-$DISTRIBE s3 generate-hashes <product> <version>          --config=default-0.74
+# Upload a changelog text file for an existing release
+distribe s3 changelog <product> <version> <changelog.txt>
 
-# List release artefacts already in S3
-$DISTRIBE s3 list-release <product> <version>             --config=default-0.74
-$DISTRIBE s3 releases <product>                           --config=default-0.74
+# Backfill cumulative changelog.txt for every archived version of a (product, branch, variant)
+distribe s3 backfill-cumulative-changelog <product> <branch> [--variant=<name>]
 
-# Per-customer batch distribution (Lambda fan-out)
-$DISTRIBE s3 batch-distribute  <product> <version> ...    --config=default-0.74
-$DISTRIBE s3 batch-distribute-status <job-id>             --config=default-0.74
+# Download the cumulative changelog from the archive to a local file
+distribe s3 download-changelog <product> <version> <output-file>
+
+# Read-only inspection of the archive
+distribe s3 archive <product> <version>
+distribe s3 list-release <product> <version>
+distribe s3 releases <product>
+distribe s3 generate-hashes <product> <version>
 ```
 
-`download-changelog` and `archive` are read-only helpers for inspecting historical state.
+**Important distinction**:
+
+- `s3 distribute` triggers the classic single-meta-file flow used by the stripe / promo-code path (one customer per webhook). Emails `downloads@tomitribe.com` at start and end — don't publish to Zendesk before the `Distribution Success` email arrives.
+- `s3 batch-distribute` queues one SQS message *per customer* on `distribe-batch-distribute-queue` for the multi-customer CVE workflow. No pre-filter, no webhook; idempotency is enforced Lambda-side via an S3 HEAD on the target bucket. Pass `--force` to re-weave existing entries.
+
+`--customers=<file>` lines are Salesforce Account IDs (start with `001…`); other lines (headers, comments starting `#`, blank lines) are safely ignored.
 
 ---
 
 ## `zendesk` — Customer-facing publishing
 
 ```bash
-# Publish (or re-publish with --overwrite) the download page for a release
-$DISTRIBE zendesk publish <product> <version> --customer-id=<ID> [--customer-id=<ID> ...] --config=default-0.74
-$DISTRIBE zendesk publish <product> <version> --customers=<csv-or-txt> --changelog=<file>  --config=default-0.74
-$DISTRIBE zendesk publish <product> <version> --customers=<file> --overwrite --skip-notification --config=default-0.74
+# Publish download pages (Articles). Customer set: --customer-id (repeat) or --customers=<file>;
+# falling back to whoever has the release in their S3 download area.
+distribe zendesk publish <product> <version> --customer-id=<ID> [--customer-id=<ID> ...]
+distribe zendesk publish <product> <version> --customers=<file> --changelog=<file>
+distribe zendesk publish <product> <version> --customers=<file> --overwrite --skip-notification
+distribe zendesk publish <product> <version> --customers=<file> --print-body-only    # dry run
+distribe zendesk publish <product> <version> --customers=<file> --variant=usa        # localised variant
 
-# Subscription / paginated page management
-$DISTRIBE zendesk publish-subscription-page <product> <version> ... --config=default-0.74
-$DISTRIBE zendesk list-download-pages <customer-id> --config=default-0.74
+# Search Zendesk for download pages already published for a customer
+distribe zendesk list-download-pages <customer-id>
 
-# Notification side (after publish, send the ticket / article notification)
-$DISTRIBE zendesk notify <product> <version> --customers=<file>     --config=default-0.74
+# Subscription page management
+distribe zendesk publish-subscription-page <product> <version> ...
 
-# Organization management
-$DISTRIBE zendesk organizations
-$DISTRIBE zendesk add-new-organization <name>
-$DISTRIBE zendesk get-missing-orgs / fix-missing-orgs
+# Notify customers after pages are published (adds ONE comment per matched ticket)
+distribe zendesk notify <product> <version> --customers=<file>
+
+# Tickets
+distribe zendesk create-ticket   --customers=<file> --subject=<...> --body=<file>
+distribe zendesk update-ticket   --query=<search>    --status=solved
+distribe zendesk solve-tickets   --query=<search>
+distribe zendesk validate-customers --query=<search>    # cross-check SF entitlements
+
+# Organizations & admin contacts
+distribe zendesk organizations
+distribe zendesk add-new-organization <name>
+distribe zendesk get-missing-orgs    /    distribe zendesk fix-missing-orgs
+distribe zendesk list-admin-contacts
 ```
 
-Useful flags:
-- `--overwrite` — re-publish an existing download page (default: refuses to clobber)
-- `--skip-notification` — publish without sending the notification ticket (useful when notifying separately later)
-- `--print-body-only` — render and print the body without making any API call (dry run)
-- `--variant=usa` — generate the USA-localised variant alongside the default
+**Behavioural notes**:
 
-The changelog file passed to `--changelog=` **must be valid markdown**, and headings are level-promoted by the markdown parser (see `LeveledHeading` in `distribe-core`). Don't paste random HTML.
+- `zendesk publish` is **idempotent only with `--overwrite`** — without it, existing download pages are skipped (existing article IDs returned). With `--overwrite`, pages are rebuilt **but the article ID stays stable** so links don't churn.
+- `--skip-notification` is essential when re-publishing; otherwise customers get duplicate notifications.
+- `--allow-empty` lets the command succeed even if the customer set resolves to zero.
+- Changelog files passed to `--changelog=` use a markdown-like format: `#` headings (no nesting), paragraphs separated by blank lines, dash-prefixed bullets (no nesting), four-space code blocks.
 
 ---
 
-## `config` — Profile management
+## `customer` — Salesforce-backed customer ops
 
 ```bash
-$DISTRIBE config list                       # show all profiles
-$DISTRIBE config set <name> --<key>=<val>   # set/update a key on a profile
-$DISTRIBE config add <name> --<key>=<val>   # create a new profile
-$DISTRIBE config export <name>              # dump a profile as YAML
-$DISTRIBE config import <file>              # restore from YAML
-$DISTRIBE config remove <name>
+# Listings & mapping
+distribe customer list
+distribe customer mapping                          # Salesforce ↔ Zendesk org mapping
+distribe customer users                            # Zendesk users for the SF customer list
+
+# Per-customer release ops
+distribe customer add-release    <product> <version> <customer-id>
+distribe customer remove-release <product> <version> <customer-id>
+distribe customer list-release   <product> <version> <customer-id>
+distribe customer releases       <customer-id>
+distribe customer download-links <customer-id>
+distribe customer allowed        <product> <version>
+
+# Subscription overrides
+distribe customer extend         <customer-id> --date=<YYYY-MM-DD>
+distribe customer unextend       <customer-id>
+distribe customer extension      <customer-id>
+distribe customer generate-subscription <customer-id> ...
+distribe customer admin-contacts-summary
 ```
 
-Profiles carry credentials for AWS, Nexus, Salesforce, Zendesk, Jenkins, GitHub. Don't paste keys into the chat — refer the user to `config set` instead.
+Customer IDs are Salesforce Account IDs (`001…`).
+
+---
+
+## `lambda` — Deploy & promote
+
+```bash
+distribe lambda deploy        <lambda-name> <jar>          # deploy a new version
+distribe lambda deploy-layer  <layer-name>  <zip>
+distribe lambda promote       <lambda-name> <version> --alias=<env>
+```
+
+`lambda deploy` embeds the matching `~/.tribe/distribe/<lambda-name>.properties` into the jar before upload — keep those files in sync.
+
+---
+
+## Other useful groups
+
+```bash
+# Patch utilities — detect stale <product>-X.Y.Z-TT.N-SNAPSHOT literals in poms
+distribe patch check-stale-refs [--fix]
+
+# Reporting (GA4 + Salesforce + BigQuery)
+distribe reporting downloads
+distribe reporting licences-accepted
+distribe reporting audit-instances
+distribe reporting list-instances-running
+distribe reporting compute-empty-branches      # one-shot recomputation
+
+# Job scheduler (cron-like wrapping of distribe commands)
+distribe job create / list / get / delete
+
+# Stripe billing
+distribe stripe list-prices / list-products / list-coupons / list-codes
+distribe stripe verify-products-prices
+
+# Parameter Store
+distribe param list / store / delete / list-system-properties
+
+# Weaver (bytecode instrumentation for customer-bound binaries)
+distribe weaver weave / get-weaving-artifacts
+```
 
 ---
 
@@ -196,35 +349,43 @@ Profiles carry credentials for AWS, Nexus, Salesforce, Zendesk, Jenkins, GitHub.
 
 ### 1. Don't fall back to `curl` for Jenkins
 
-`curl --user $USER:$TOKEN https://ttci.tomitribe.com/...` returns **HTTP 401** even with the right credentials — the CI uses CSRF crumbs that distribe handles internally. Always use `$DISTRIBE jenkins ...`.
+`curl --user $USER:$TOKEN https://ttci.tomitribe.com/...` returns **HTTP 401** even with the right credentials — the CI uses CSRF crumbs that distribe handles internally. Always go through `distribe jenkins …`.
 
-### 2. `jenkins status` is named-args, `jenkins trigger` is positional
+### 2. `jenkins trigger` is positional, `jenkins status` is named-args
 
 ```bash
-$DISTRIBE jenkins trigger tomcat tomcat-8.5.x-TT.x --pr=67 --config=default-0.74   # OK
-$DISTRIBE jenkins status  --product=tomcat --branch=tomcat-8.5.x-TT.x --pr=67 ...   # OK
-$DISTRIBE jenkins status  tomcat tomcat-8.5.x-TT.x --pr=67 ...                      # FAIL: "Excess arguments"
+distribe jenkins trigger tomcat tomcat-8.5.x-TT.x --pr=67          # OK
+distribe jenkins status  --product=tomcat --branch=tomcat-8.5.x-TT.x --pr=67   # OK
+distribe jenkins status  tomcat tomcat-8.5.x-TT.x --pr=67          # FAIL: "Excess arguments"
 ```
 
 ### 3. Tomcat git branch ≠ Jenkins branch
 
 For Tomcat 8.5 / 9.0 / 11.0 the git branch is `<X.Y>.x-TT.x` but the Jenkins job is prefixed `tomcat-<X.Y>.x-TT.x`. Always pass the Jenkins-side name to `--branch=`. 10.0 / 10.1 happen to coincide.
 
-### 4. `--config` is not optional in scripted use
+### 4. `--config` matters
 
-The default profile (`default`) is the *legacy* one. For current work always pass `--config=default-0.74` (or `usa-0.74` for USA-region fan-out). Leaving `--config` off lands silently on the legacy profile.
+The CLI default is `--config=default`, which is usually the *legacy* profile. Most teams maintain version-suffixed variants (e.g. `default-<distribe-version>`, plus `usa-…` for the USA fan-out). When in doubt, ask which profile to use rather than dropping `--config` silently.
 
-### 5. `cve customers` writes to the cve repo working tree
+### 5. `s3 distribute` vs `s3 batch-distribute`
 
-The command creates `processed/<issue-id>/` with TSV state files, publish lists, and `meta.properties`. Don't run it on the wrong cve checkout — it expects to be invoked from `~/devs/jeanouii/tomitribe/cve`.
+They are **not interchangeable**. `s3 distribute` uses the classic synchronous flow with a `distribute.meta` SQS trigger and emails on completion — required for the stripe / promo-code path. `s3 batch-distribute` queues per-customer SQS messages for the multi-customer CVE flow and returns immediately; poll with `s3 batch-distribute-status`. Idempotency on `batch-distribute` is per-customer Lambda-side; use `--force` to re-weave.
 
 ### 6. `zendesk publish` is idempotent only with `--overwrite`
 
-Without `--overwrite` it refuses to clobber an existing download page (returns the existing article ID). With `--overwrite` it rebuilds the page. `--skip-notification` is essential when re-publishing — otherwise customers get spammed with duplicate notifications.
+Without `--overwrite`, existing pages are skipped. With `--overwrite`, content is rebuilt but the article ID stays stable so download links don't break. Always pair `--overwrite` with `--skip-notification` unless you want every customer re-pinged.
 
-### 7. `s3 batch-distribute` is async — poll with `batch-distribute-status`
+### 7. `zendesk publish` changelog format is *not* full markdown
 
-The batch command kicks off a Lambda fan-out and returns immediately with a job id. Local feedback says "queued", not "done". Poll until status reports `COMPLETED`.
+It's a markdown-*like* shape (see the help text): single-level headings (`#`), no nested bullets, four-space indented code blocks. Don't paste arbitrary HTML or GFM extras.
+
+### 8. `cve customers` writes to `./customers-<CVE-ID>/` by default
+
+Default working dir is `./customers-<CVE-ID>/` (resolved from the issue title, e.g. `./customers-CVE-2026-42403/`). Override with `--output-dir=<path>` when needed. Validation failures populate `_warnings.txt` and block downstream stages until the SF data is fixed or the file is manually emptied.
+
+### 9. `customer` files (`--customers=<file>`) ignore non-001 lines
+
+Lines that don't start with `001` (Salesforce Account ID prefix) are silently ignored — comments (`#`), headers, and blanks are safe. Don't over-engineer the file format.
 
 ---
 
@@ -233,33 +394,50 @@ The batch command kicks off a Lambda fan-out and returns immediately with a job 
 ### Trigger a Tomcat PR build after pushing
 
 ```bash
-git push origin HEAD:refs/heads/<git-branch>          # in a worktree
-$DISTRIBE jenkins trigger tomcat <jenkins-branch> --pr=<PR_NUMBER> --config=default-0.74
-# → returns getBuild URL; poll:
-$DISTRIBE jenkins status --product=tomcat --branch=<jenkins-branch> --pr=<PR_NUMBER> --config=default-0.74
+git push origin HEAD:refs/heads/<git-branch>
+distribe jenkins trigger tomcat <jenkins-branch> --pr=<PR_NUMBER>
+distribe jenkins status  --product=tomcat --branch=<jenkins-branch> --pr=<PR_NUMBER> --watch
 ```
 
-### CVE customer fan-out end-to-end (read-only inspection)
+### Decide if a flaky CI run is the patch's fault
 
 ```bash
-$DISTRIBE cve customers <ISSUE>  --config=default-0.74
-# → produces processed/<issue>/ with publish-lists/*.txt + meta.properties
-ls processed/<issue>/publish-lists/
-cat processed/<issue>/meta.properties
+distribe jenkins flaky-compare tomcat <jenkins-branch> --pr=<PR_NUMBER>
+# Exits 0 (clean / flaky upstream / fix) or 2 (PATCH IS THE CAUSE)
 ```
 
-### Re-publish a Zendesk download page
+### CVE customer fan-out, end to end
 
 ```bash
-$DISTRIBE zendesk publish <product> <version> \
-    --customers=processed/<issue>/publish-lists/<version>-default.txt \
-    --changelog=processed/<issue>/changelog-<version>.md \
-    --overwrite --skip-notification \
-    --config=default-0.74
+distribe cve customers <ISSUE_NUMBER>
+ls customers-<CVE-ID>/
+cat customers-<CVE-ID>/meta.properties
+# (operator inspects _warnings.txt, fixes data if needed)
+distribe cve notify-new-cve  --cve-dir=customers-<CVE-ID>/
+# ... after binaries are released ...
+distribe s3 batch-distribute <product> <version> --customer-id=001…  --correlation-id=cve-<id>
+distribe s3 batch-distribute-status cve-<id>
+distribe cve notify-download --branch=<branch> --version=<TT version>
+distribe cve solve-tickets   --cve-dir=customers-<CVE-ID>/
+```
+
+### Re-publish a Zendesk download page without notifying
+
+```bash
+distribe zendesk publish <product> <version> \
+    --customers=customers-<CVE-ID>/publish-lists/<version>-default.txt \
+    --changelog=customers-<CVE-ID>/changelog-<version>.md \
+    --overwrite --skip-notification
+```
+
+### Generate a CVE notification template auto-filled from NVD
+
+```bash
+distribe nexus cve-template --cve=CVE-2026-42403 --product=tomee --branch=8.0
 ```
 
 ### Stable-branch build after a Tomitribe release
 
 ```bash
-$DISTRIBE jenkins trigger tomcat <jenkins-branch> --stable --config=default-0.74
+distribe jenkins trigger tomcat <jenkins-branch> --stable
 ```

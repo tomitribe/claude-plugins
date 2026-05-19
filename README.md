@@ -31,6 +31,14 @@ Skills that auto-activate when you're working with Tomitribe libraries:
 | `java-conventions` | Tomitribe Java coding standards (`final` keyword, etc.) |
 | `resolve-conflicts` | Surgical merge conflict resolution — auto-activates when conflict markers appear |
 
+## Internal Tool Plugins
+
+Skills that document Tomitribe-internal CLIs (not open-source libraries):
+
+| Plugin | Tool |
+|--------|------|
+| `distribe` | Distribe release/distribution CLI — Jenkins, S3, Zendesk, CVE fan-out, Nexus, Salesforce |
+
 ## Workflow Commands
 
 Commands for working effectively with Claude Code. Enable via `workflow@tomitribe`.
