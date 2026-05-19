@@ -1,0 +1,8 @@
+{
+  "name": "distribe",
+  "description": "Tomitribe Distribe CLI reference — release distribution, Jenkins orchestration, Zendesk publishing, CVE customer fan-out",
+  "version": "1.0.0",
+  "author": {
+    "name": "Tomitribe"
+  }
+}

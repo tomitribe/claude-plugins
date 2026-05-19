@@ -68,6 +68,11 @@
       "name": "resolve-conflicts",
       "source": "./plugins/resolve-conflicts",
       "description": "Surgical merge conflict resolution — understand original commit intent and apply minimum necessary changes"
+    },
+    {
+      "name": "distribe",
+      "source": "./plugins/distribe",
+      "description": "Tomitribe Distribe CLI reference — Jenkins orchestration, S3 release distribution, Zendesk publishing, CVE customer fan-out"
     }
   ]
 }
