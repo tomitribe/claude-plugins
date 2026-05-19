@@ -63,6 +63,11 @@
       "name": "workflow",
       "source": "./plugins/workflow",
       "description": "Collaboration workflow commands: /design (design sessions), /improve (compounding CLAUDE.md), /handoff (session continuity)"
+    },
+    {
+      "name": "resolve-conflicts",
+      "source": "./plugins/resolve-conflicts",
+      "description": "Surgical merge conflict resolution — understand original commit intent and apply minimum necessary changes"
     }
   ]
 }

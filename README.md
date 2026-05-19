@@ -29,6 +29,7 @@ Skills that auto-activate when you're working with Tomitribe libraries:
 | `http-signatures` | HTTP message signing (HMAC, RSA, ECDSA) |
 | `swizzle` | Stream manipulation and lexing |
 | `java-conventions` | Tomitribe Java coding standards (`final` keyword, etc.) |
+| `resolve-conflicts` | Surgical merge conflict resolution — auto-activates when conflict markers appear |
 
 ## Workflow Commands
 
