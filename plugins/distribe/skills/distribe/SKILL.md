@@ -258,7 +258,6 @@ distribe zendesk notify <product> <version> --customers=<file>
 distribe zendesk create-ticket   --customers=<file> --subject=<...> --body=<file>
 distribe zendesk update-ticket   --query=<search>    --status=solved
 distribe zendesk solve-tickets   --query=<search>
-distribe zendesk validate-customers --query=<search>    # cross-check SF entitlements
 
 # Organizations & admin contacts
 distribe zendesk organizations
@@ -291,6 +290,7 @@ distribe customer list-release   <product> <version> <customer-id>
 distribe customer releases       <customer-id>
 distribe customer download-links <customer-id>
 distribe customer allowed        <product> <version>
+distribe customer validate-customers <product> <version> --customer-id=<id> [--customer-id=<id> …]  # eligibility + 3DS coherence
 
 # Subscription overrides
 distribe customer extend         <customer-id> --date=<YYYY-MM-DD>
